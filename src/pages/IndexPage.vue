@@ -16,7 +16,19 @@
         v-model="selectedTimeSlot"
         :options="availableTimeSlots"
         label="Select Time Slot"
-      />
+        option-label="label"
+        option-value="value"
+        :option-disable="(option) => option.disable"
+        clearable
+      >
+        <template v-slot:option="scope">
+          <q-item v-bind="scope.itemProps">
+            <q-item-section :class="{ 'text-red': scope.opt.disable }">
+              {{ scope.opt.label }}
+            </q-item-section>
+          </q-item>
+        </template>
+      </q-select>
     </q-card-section>
 
     <!-- Machine Selection (multiple) -->
@@ -110,3 +122,9 @@ const submit = () => {
   console.log('selected machines:', selectedMachines.value);
 };
 </script>
+
+<style scoped>
+.text-red {
+  color: red;
+}
+</style>
