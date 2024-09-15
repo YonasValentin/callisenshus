@@ -14,7 +14,7 @@
     <q-card-section>
       <q-select
         v-model="selectedTimeSlot"
-        :options="timeSlots"
+        :options="availableTimeSlots"
         label="Select Time Slot"
       />
     </q-card-section>
@@ -48,6 +48,13 @@ const selectedDate = ref(null);
 const selectedTimeSlot = ref(null);
 const selectedMachines = ref([]);
 
+// Dummy reserved time slots for now, will connect to Supabase later
+const reservedSlots = ref([
+  { date: '2024-09-16', timeSlot: '08:00 - 10:00', machines: [1, 2] },
+  { date: '2024-09-17', timeSlot: '10:00 - 12:00', machines: [2, 3] },
+  { date: '2024-09-16', timeSlot: '14:00 - 16:00', machines: [1] },
+]);
+
 const machines = [
   { label: 'Washing Machine 1', value: 1 },
   { label: 'Washing Machine 2', value: 2 },
@@ -57,7 +64,6 @@ const machines = [
 // Define valid dates (today and the next 7 days)
 const dateOptions = (date: string | Date): boolean => {
   const today = new Date();
-
   today.setHours(0, 0, 0, 0);
 
   const selectedDate = new Date(date);
@@ -78,6 +84,17 @@ const timeSlots = [
   { label: '18:00 - 20:00', value: '18:00 - 20:00' },
   { label: '20:00 - 22:00', value: '20:00 - 22:00' },
 ];
+
+// Include all time slots but disable the ones that are reserved
+const availableTimeSlots = computed(() => {
+  return timeSlots.map((slot) => {
+    const isReserved = reservedSlots.value.some(
+      (reserved) =>
+        reserved.date === selectedDate.value && reserved.timeSlot === slot.value
+    );
+    return { ...slot, disable: isReserved };
+  });
+});
 
 const canSubmit = computed(() => {
   return (
