@@ -69,9 +69,15 @@ interface Machine {
   value: number;
 }
 
+interface TimeSlot {
+  label: string;
+  value: string;
+  disable: boolean;
+}
+
 // Selected fields
 const selectedDate = ref<string | null>(null);
-const selectedTimeSlot = ref<string | null>(null);
+const selectedTimeSlot = ref<string | TimeSlot | null>(null);
 const selectedMachines = ref<Machine[]>([]);
 const reservedSlots = ref<Reservation[]>([]);
 
@@ -97,14 +103,14 @@ const dateOptions = (date: string | Date): boolean => {
 };
 
 // Time slots data
-const timeSlots = [
-  { label: '08:00 - 10:00', value: '08:00 - 10:00' },
-  { label: '10:00 - 12:00', value: '10:00 - 12:00' },
-  { label: '12:00 - 14:00', value: '12:00 - 14:00' },
-  { label: '14:00 - 16:00', value: '14:00 - 16:00' },
-  { label: '16:00 - 18:00', value: '16:00 - 18:00' },
-  { label: '18:00 - 20:00', value: '18:00 - 20:00' },
-  { label: '20:00 - 22:00', value: '20:00 - 22:00' },
+const timeSlots: TimeSlot[] = [
+  { label: '08:00 - 10:00', value: '08:00 - 10:00', disable: false },
+  { label: '10:00 - 12:00', value: '10:00 - 12:00', disable: false },
+  { label: '12:00 - 14:00', value: '12:00 - 14:00', disable: false },
+  { label: '14:00 - 16:00', value: '14:00 - 16:00', disable: false },
+  { label: '16:00 - 18:00', value: '16:00 - 18:00', disable: false },
+  { label: '18:00 - 20:00', value: '18:00 - 20:00', disable: false },
+  { label: '20:00 - 22:00', value: '20:00 - 22:00', disable: false },
 ];
 
 // Fetch reservations from Supabase based on the selected date
@@ -151,21 +157,31 @@ const canSubmit = computed(() => {
   );
 });
 
+// Watcher to extract the value from the object and store it in selectedTimeSlot
+watch(
+  () => selectedTimeSlot.value,
+  (newValue: string | TimeSlot | null) => {
+    // Explicitly type newValue
+    if (newValue && typeof newValue === 'object') {
+      selectedTimeSlot.value = newValue.value; // Extract the string value
+    }
+  }
+);
+
 // Submit the reservation to Supabase
 const submit = async () => {
   try {
     // Extract the machine values (1, 2, 3, etc.) from the selectedMachines
     const machineValues = selectedMachines.value.map(
       (machine) => machine.value
-    ); // Ensure it's just values
+    );
 
-    // Extract the value from selectedTimeSlot (since it's a Vue ref or a reactive object)
-    const timeslot = selectedTimeSlot.value?.value || selectedTimeSlot.value; // Get the actual string value
+    // selectedTimeSlot now holds just the string value
+    const timeslot = selectedTimeSlot.value;
 
     // Ensure selectedDate is a string
-    const date = selectedDate.value; // Ensure this is not a ref object, but a string
+    const date = selectedDate.value;
 
-    // Log the values to verify
     console.log('Submitting the following data:');
     console.log('Date:', date);
     console.log('Timeslot:', timeslot);
@@ -184,8 +200,7 @@ const submit = async () => {
       console.error('Error submitting reservation:', error);
     } else {
       console.log('Reservation submitted:', data);
-      // Refresh reserved slots after submission
-      fetchReservedSlots();
+      fetchReservedSlots(); // Refresh after submitting
     }
   } catch (e) {
     console.error('Error during submission:', e);
