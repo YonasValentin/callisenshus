@@ -57,13 +57,23 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { supabase } from 'src/api/supabase';
 
-// Selected fields
-const selectedDate = ref(null);
-const selectedTimeSlot = ref(null);
-const selectedMachines = ref([]);
+interface Reservation {
+  id: string;
+  date: string;
+  timeslot: string;
+  machines: number[];
+}
 
-// Reserved slots fetched from Supabase
-const reservedSlots = ref([]);
+interface Machine {
+  label: string;
+  value: number;
+}
+
+// Selected fields
+const selectedDate = ref<string | null>(null);
+const selectedTimeSlot = ref<string | null>(null);
+const selectedMachines = ref<Machine[]>([]);
+const reservedSlots = ref<Reservation[]>([]);
 
 // Machines data
 const machines = [
@@ -109,7 +119,7 @@ const fetchReservedSlots = async () => {
   if (error) {
     console.error('Error fetching reserved slots:', error);
   } else {
-    reservedSlots.value = data || []; // Ensure reservedSlots is never null
+    reservedSlots.value = (data as Reservation[]) || [];
   }
 };
 
@@ -126,7 +136,7 @@ const availableTimeSlots = computed(() => {
   return timeSlots.map((slot) => {
     const isReserved = reservedSlots.value.some(
       (reserved) =>
-        reserved.date === selectedDate.value && reserved.timeslot === slot.value // Ensure correct casing 'timeslot'
+        reserved.date === selectedDate.value && reserved.timeslot === slot.value
     );
     return { ...slot, disable: isReserved };
   });
@@ -143,23 +153,42 @@ const canSubmit = computed(() => {
 
 // Submit the reservation to Supabase
 const submit = async () => {
-  // Extract the machine values (1, 2, 3, etc.) from the selectedMachines
-  const machineValues = selectedMachines.value.map((machine) => machine.value);
+  try {
+    // Extract the machine values (1, 2, 3, etc.) from the selectedMachines
+    const machineValues = selectedMachines.value.map(
+      (machine) => machine.value
+    ); // Ensure it's just values
 
-  const { data, error } = await supabase.from('reservations').insert([
-    {
-      date: selectedDate.value,
-      timeslot: selectedTimeSlot.value?.value, // Make sure this matches with the Supabase schema ('timeslot')
-      machines: machineValues, // Submit the values of the selected machines
-    },
-  ]);
+    // Extract the value from selectedTimeSlot (since it's a Vue ref or a reactive object)
+    const timeslot = selectedTimeSlot.value?.value || selectedTimeSlot.value; // Get the actual string value
 
-  if (error) {
-    console.error('Error submitting reservation:', error);
-  } else {
-    console.log('Reservation submitted:', data);
-    // Refresh reserved slots after submission
-    fetchReservedSlots();
+    // Ensure selectedDate is a string
+    const date = selectedDate.value; // Ensure this is not a ref object, but a string
+
+    // Log the values to verify
+    console.log('Submitting the following data:');
+    console.log('Date:', date);
+    console.log('Timeslot:', timeslot);
+    console.log('Machines:', machineValues);
+
+    // Submit the reservation to Supabase
+    const { data, error } = await supabase.from('reservations').insert([
+      {
+        date: date, // Pass just the string value for date
+        timeslot: timeslot, // Pass the time slot string
+        machines: machineValues, // Pass the array of machine values
+      },
+    ]);
+
+    if (error) {
+      console.error('Error submitting reservation:', error);
+    } else {
+      console.log('Reservation submitted:', data);
+      // Refresh reserved slots after submission
+      fetchReservedSlots();
+    }
+  } catch (e) {
+    console.error('Error during submission:', e);
   }
 };
 </script>
