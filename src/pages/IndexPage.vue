@@ -54,19 +54,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { supabase } from 'src/api/supabase';
 
+// Selected fields
 const selectedDate = ref(null);
 const selectedTimeSlot = ref(null);
 const selectedMachines = ref([]);
 
-// Dummy reserved time slots for now, will connect to Supabase later
-const reservedSlots = ref([
-  { date: '2024-09-16', timeSlot: '08:00 - 10:00', machines: [1, 2] },
-  { date: '2024-09-17', timeSlot: '10:00 - 12:00', machines: [2, 3] },
-  { date: '2024-09-16', timeSlot: '14:00 - 16:00', machines: [1] },
-]);
+// Reserved slots fetched from Supabase
+const reservedSlots = ref([]);
 
+// Machines data
 const machines = [
   { label: 'Washing Machine 1', value: 1 },
   { label: 'Washing Machine 2', value: 2 },
@@ -87,6 +86,7 @@ const dateOptions = (date: string | Date): boolean => {
   );
 };
 
+// Time slots data
 const timeSlots = [
   { label: '08:00 - 10:00', value: '08:00 - 10:00' },
   { label: '10:00 - 12:00', value: '10:00 - 12:00' },
@@ -97,17 +97,42 @@ const timeSlots = [
   { label: '20:00 - 22:00', value: '20:00 - 22:00' },
 ];
 
-// Include all time slots but disable the ones that are reserved
+// Fetch reservations from Supabase based on the selected date
+const fetchReservedSlots = async () => {
+  if (!selectedDate.value) return;
+
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('*')
+    .eq('date', selectedDate.value);
+
+  if (error) {
+    console.error('Error fetching reserved slots:', error);
+  } else {
+    reservedSlots.value = data || []; // Ensure reservedSlots is never null
+  }
+};
+
+// Automatically fetch reserved slots when the component is mounted
+onMounted(fetchReservedSlots);
+
+// Re-fetch reserved slots whenever the date is changed
+watch(selectedDate, fetchReservedSlots);
+
+// Compute available time slots, disabling those that are reserved
 const availableTimeSlots = computed(() => {
+  if (!selectedDate.value) return timeSlots;
+
   return timeSlots.map((slot) => {
     const isReserved = reservedSlots.value.some(
       (reserved) =>
-        reserved.date === selectedDate.value && reserved.timeSlot === slot.value
+        reserved.date === selectedDate.value && reserved.timeslot === slot.value // Ensure correct casing 'timeslot'
     );
     return { ...slot, disable: isReserved };
   });
 });
 
+// Determine whether the "Submit" button should be enabled
 const canSubmit = computed(() => {
   return (
     selectedDate.value &&
@@ -116,10 +141,26 @@ const canSubmit = computed(() => {
   );
 });
 
-const submit = () => {
-  console.log('selected date:', selectedDate.value);
-  console.log('selected time slot:', selectedTimeSlot.value);
-  console.log('selected machines:', selectedMachines.value);
+// Submit the reservation to Supabase
+const submit = async () => {
+  // Extract the machine values (1, 2, 3, etc.) from the selectedMachines
+  const machineValues = selectedMachines.value.map((machine) => machine.value);
+
+  const { data, error } = await supabase.from('reservations').insert([
+    {
+      date: selectedDate.value,
+      timeslot: selectedTimeSlot.value?.value, // Make sure this matches with the Supabase schema ('timeslot')
+      machines: machineValues, // Submit the values of the selected machines
+    },
+  ]);
+
+  if (error) {
+    console.error('Error submitting reservation:', error);
+  } else {
+    console.log('Reservation submitted:', data);
+    // Refresh reserved slots after submission
+    fetchReservedSlots();
+  }
 };
 </script>
 
