@@ -18,7 +18,7 @@
         label="Select Time Slot"
         option-label="label"
         option-value="value"
-        :option-disable="disableOption"
+        :option-disable="isTimeSlotDisabled"
         :emit-value="true"
         clearable
       >
@@ -101,8 +101,8 @@ const timeSlots: TimeSlot[] = [
   { label: '20:00 - 22:00', value: '20:00 - 22:00', disable: false },
 ];
 
-// Date validation for next 7 days
-const dateOptions = (date: string | Date): boolean => {
+// Utility functions
+const isDateWithinRange = (date: string | Date, rangeInDays = 7) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -111,23 +111,28 @@ const dateOptions = (date: string | Date): boolean => {
 
   return (
     selected >= today &&
-    selected <= new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+    selected <= new Date(today.getTime() + rangeInDays * 24 * 60 * 60 * 1000)
   );
 };
+
+// Date validation for next 7 days
+const dateOptions = (date: string | Date): boolean => isDateWithinRange(date);
 
 // Fetch reservations for selected date
 const fetchReservationsForSelectedDate = async () => {
   if (!selectedDate.value) return;
 
-  const { data, error } = await supabase
-    .from('reservations')
-    .select('*')
-    .eq('date', selectedDate.value);
+  try {
+    const { data, error } = await supabase
+      .from('reservations')
+      .select('*')
+      .eq('date', selectedDate.value);
 
-  if (error) {
-    console.error('Error fetching reserved slots:', error);
-  } else {
+    if (error) throw new Error(error.message);
+
     reservedSlots.value = (data as Reservation[]) || [];
+  } catch (err) {
+    console.error('Error fetching reserved slots:', err);
   }
 };
 
@@ -148,10 +153,10 @@ const availableTimeSlots = computed(() => {
   }));
 });
 
-// Disable reserved time slots
-const disableOption = (option: TimeSlot) => option.disable;
+// Disable time slots
+const isTimeSlotDisabled = (option: TimeSlot) => option.disable;
 
-// Determine if "Submit" button should be enabled
+// Check if submit button should be enabled
 const canSubmit = computed(() => {
   return (
     selectedDate.value &&
@@ -162,6 +167,15 @@ const canSubmit = computed(() => {
 
 // Submit the reservation
 const submit = async () => {
+  if (
+    !selectedDate.value ||
+    !selectedTimeSlot.value ||
+    !selectedMachines.value.length
+  ) {
+    console.error('Missing required fields');
+    return;
+  }
+
   try {
     const machineValues = selectedMachines.value.map(
       (machine) => machine.value
@@ -177,14 +191,12 @@ const submit = async () => {
       },
     ]);
 
-    if (error) {
-      console.error('Error submitting reservation:', error);
-    } else {
-      console.log('Reservation submitted:', data);
-      fetchReservationsForSelectedDate(); // Refresh after submitting
-    }
-  } catch (e) {
-    console.error('Error during submission:', e);
+    if (error) throw new Error(error.message);
+
+    console.log('Reservation submitted:', data);
+    await fetchReservationsForSelectedDate(); // Refresh after submitting
+  } catch (err) {
+    console.error('Error submitting reservation:', err);
   }
 };
 </script>
