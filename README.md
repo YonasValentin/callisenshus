@@ -1,41 +1,72 @@
 # Callisenshus (callisenshus)
 
-✔ What would you like to build? › App with Quasar CLI, let's go!✔ Project folder: … callisenshus✔ Pick Quasar version: › Quasar v2 (Vue 3 | latest and greatest)✔ Pick script type: › Typescript✔ Pick Quasar App CLI variant: › Quasar App CLI with Vite 2 (stable | v1)✔ Package name: … callisenshus✔ Project product name: (must start with letter if building mobile apps) … Callisenshus? Project description: › A Quasar Project
+**A washing machine reservation system for Callisenshus**, built with Quasar (Vue 3, Typescript, Vite), designed for managing bookings of laundry facilities with dynamic time slot availability based on existing reservations.
 
-## Install the dependencies
+## Project Setup
+
+This project was generated with Quasar CLI using the following setup:
+
+- **Quasar Version**: v2 (Vue 3 | latest and greatest)
+- **Script Type**: Typescript
+- **Build Tool**: Vite
+- **Package Name**: callisenshus
+- **Product Name**: Callisenshus
+
+## Features
+
+- **Booking System**: Allows users to select machines, dates, and time slots for laundry reservation.
+- **Dynamic Time Slot Availability**: Time slots are dynamically disabled based on existing reservations for the selected date.
+- **Responsive Design**: Works seamlessly across devices (desktop, tablet, mobile).
+- **Supabase Integration**: Backend powered by Supabase for managing reservations.
+- **Validation**: Users can only select valid dates (within the next 7 days) and available time slots.
+- **Real-Time Reservation Updates**: The system automatically fetches the latest reservations when a date is selected or a new booking is made.
+
+## Install the Dependencies
+
+Run the following command to install the project dependencies:
+
 ```bash
 yarn
 # or
 npm install
 ```
 
-### Start the app in development mode (hot-code reloading, error reporting, etc.)
+## Start the App in Development Mode
+
+Start the development server with hot-code reloading, error reporting, etc.:
+
 ```bash
 quasar dev
 ```
 
+## Lint the Files
 
-### Lint the files
+To run the linter for identifying and fixing code issues:
+
 ```bash
 yarn lint
 # or
 npm run lint
 ```
 
+## Format the Files
 
-### Format the files
+Automatically format the code files to maintain consistency:
+
 ```bash
 yarn format
 # or
 npm run format
 ```
 
+## Build the App for Production
 
+Compile the app for production with optimized performance:
 
-### Build the app for production
 ```bash
 quasar build
 ```
 
-### Customize the configuration
-See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).
+## Customize the Configuration
+
+To customize Quasar's configuration, see the official documentation: [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).
