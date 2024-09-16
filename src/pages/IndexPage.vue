@@ -18,7 +18,8 @@
         label="Select Time Slot"
         option-label="label"
         option-value="value"
-        :option-disable="(option) => option.disable"
+        :option-disable="disableOption"
+        :emit-value="true"
         clearable
       >
         <template v-slot:option="scope">
@@ -57,6 +58,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { supabase } from 'src/api/supabase';
 
+// Interfaces for types
 interface Reservation {
   id: string;
   date: string;
@@ -75,34 +77,20 @@ interface TimeSlot {
   disable: boolean;
 }
 
-// Selected fields
+// Reactive data
 const selectedDate = ref<string | null>(null);
-const selectedTimeSlot = ref<string | TimeSlot | null>(null);
+const selectedTimeSlot = ref<string | null>(null);
 const selectedMachines = ref<Machine[]>([]);
 const reservedSlots = ref<Reservation[]>([]);
 
-// Machines data
-const machines = [
+// Machine data
+const machines: Machine[] = [
   { label: 'Washing Machine 1', value: 1 },
   { label: 'Washing Machine 2', value: 2 },
   { label: 'Dryer', value: 3 },
 ];
 
-// Define valid dates (today and the next 7 days)
-const dateOptions = (date: string | Date): boolean => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const selectedDate = new Date(date);
-  selectedDate.setHours(0, 0, 0, 0);
-
-  return (
-    selectedDate >= today &&
-    selectedDate <= new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-  );
-};
-
-// Time slots data
+// Time slot data
 const timeSlots: TimeSlot[] = [
   { label: '08:00 - 10:00', value: '08:00 - 10:00', disable: false },
   { label: '10:00 - 12:00', value: '10:00 - 12:00', disable: false },
@@ -113,8 +101,22 @@ const timeSlots: TimeSlot[] = [
   { label: '20:00 - 22:00', value: '20:00 - 22:00', disable: false },
 ];
 
-// Fetch reservations from Supabase based on the selected date
-const fetchReservedSlots = async () => {
+// Date validation for next 7 days
+const dateOptions = (date: string | Date): boolean => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const selected = new Date(date);
+  selected.setHours(0, 0, 0, 0);
+
+  return (
+    selected >= today &&
+    selected <= new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+  );
+};
+
+// Fetch reservations for selected date
+const fetchReservationsForSelectedDate = async () => {
   if (!selectedDate.value) return;
 
   const { data, error } = await supabase
@@ -129,26 +131,27 @@ const fetchReservedSlots = async () => {
   }
 };
 
-// Automatically fetch reserved slots when the component is mounted
-onMounted(fetchReservedSlots);
+// Automatically fetch reservations on mount and date change
+onMounted(fetchReservationsForSelectedDate);
+watch(selectedDate, fetchReservationsForSelectedDate);
 
-// Re-fetch reserved slots whenever the date is changed
-watch(selectedDate, fetchReservedSlots);
-
-// Compute available time slots, disabling those that are reserved
+// Compute available time slots
 const availableTimeSlots = computed(() => {
   if (!selectedDate.value) return timeSlots;
 
-  return timeSlots.map((slot) => {
-    const isReserved = reservedSlots.value.some(
+  return timeSlots.map((slot) => ({
+    ...slot,
+    disable: reservedSlots.value.some(
       (reserved) =>
         reserved.date === selectedDate.value && reserved.timeslot === slot.value
-    );
-    return { ...slot, disable: isReserved };
-  });
+    ),
+  }));
 });
 
-// Determine whether the "Submit" button should be enabled
+// Disable reserved time slots
+const disableOption = (option: TimeSlot) => option.disable;
+
+// Determine if "Submit" button should be enabled
 const canSubmit = computed(() => {
   return (
     selectedDate.value &&
@@ -157,42 +160,20 @@ const canSubmit = computed(() => {
   );
 });
 
-// Watcher to extract the value from the object and store it in selectedTimeSlot
-watch(
-  () => selectedTimeSlot.value,
-  (newValue: string | TimeSlot | null) => {
-    // Explicitly type newValue
-    if (newValue && typeof newValue === 'object') {
-      selectedTimeSlot.value = newValue.value; // Extract the string value
-    }
-  }
-);
-
-// Submit the reservation to Supabase
+// Submit the reservation
 const submit = async () => {
   try {
-    // Extract the machine values (1, 2, 3, etc.) from the selectedMachines
     const machineValues = selectedMachines.value.map(
       (machine) => machine.value
     );
-
-    // selectedTimeSlot now holds just the string value
     const timeslot = selectedTimeSlot.value;
-
-    // Ensure selectedDate is a string
     const date = selectedDate.value;
 
-    console.log('Submitting the following data:');
-    console.log('Date:', date);
-    console.log('Timeslot:', timeslot);
-    console.log('Machines:', machineValues);
-
-    // Submit the reservation to Supabase
     const { data, error } = await supabase.from('reservations').insert([
       {
-        date: date, // Pass just the string value for date
-        timeslot: timeslot, // Pass the time slot string
-        machines: machineValues, // Pass the array of machine values
+        date,
+        timeslot,
+        machines: machineValues,
       },
     ]);
 
@@ -200,7 +181,7 @@ const submit = async () => {
       console.error('Error submitting reservation:', error);
     } else {
       console.log('Reservation submitted:', data);
-      fetchReservedSlots(); // Refresh after submitting
+      fetchReservationsForSelectedDate(); // Refresh after submitting
     }
   } catch (e) {
     console.error('Error during submission:', e);
